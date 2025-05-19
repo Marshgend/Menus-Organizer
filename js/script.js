@@ -287,7 +287,7 @@ function renderMenuTable(menuPorDia) {
   document.getElementById("exportImgBtn").disabled = false;
 }
 
-// Exportar a PDF usando html2canvas + jsPDF
+// Exportar a PDF y abrir en nueva pestaña con controles de PDF
 function exportToPDF() {
   const menuTable = document.getElementById("menuTable");
   html2canvas(menuTable, {
@@ -296,25 +296,36 @@ function exportToPDF() {
     backgroundColor: null,
     scrollY: -window.scrollY,
   }).then((canvas) => {
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new window.jspdf.jsPDF({
-      orientation: "landscape",
-      unit: "pt",
-      format: "a4",
-    });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
+    // Tamaño carta en puntos (1 pulgada = 72pt)
+    const pageWidth = 612; // 8.5in * 72
+    const pageHeight = 792; // 11in * 72
+
+    // Calcula el tamaño de la imagen para que quepa en el ancho de la hoja, sin deformar
     const imgWidth = pageWidth - 40;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    // Si la imagen es más alta que la hoja, ajusta el alto de la hoja
+    const pdfHeight = imgHeight + 40 > pageHeight ? imgHeight + 40 : pageHeight;
+
+    const pdf = new window.jspdf.jsPDF({
+      orientation: "portrait",
+      unit: "pt",
+      format: [pageWidth, pdfHeight],
+    });
+
+    const imgData = canvas.toDataURL("image/png");
     pdf.addImage(
       imgData,
       "PNG",
       20,
       20,
       imgWidth,
-      imgHeight > pageHeight - 40 ? pageHeight - 40 : imgHeight
+      imgHeight
     );
-    pdf.save("menu-semanal.pdf");
+    // Abre el PDF en una nueva pestaña con controles de PDF
+    const blob = pdf.output("blob");
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
   });
 }
 
@@ -327,10 +338,11 @@ function exportToImage() {
     backgroundColor: null,
     scrollY: -window.scrollY,
   }).then((canvas) => {
-    const link = document.createElement("a");
-    link.download = "menu-semanal.png";
-    link.href = canvas.toDataURL("image/png");
-    link.click();
+    const dataUrl = canvas.toDataURL("image/png");
+    const win = window.open();
+    win.document.write(
+      `<html><head><title>Menu Semanal</title></head><body style="margin:0;background:#181c24;"><img src="${dataUrl}" style="width:100%;display:block;"/></body></html>`
+    );
   });
 }
 
