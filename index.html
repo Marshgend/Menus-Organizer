@@ -1,0 +1,28 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Menus Organizer</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <!-- jsPDF y html2canvas desde CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+  <script src="js/script.js" defer></script>
+</head>
+
+<body>
+  <div class="container">
+    <h1>Menus Organizer</h1>
+    <textarea id="inputText" placeholder="Pega aquí tu menú semanal..." rows="20"></textarea>
+    <div class="actions">
+      <button id="parseBtn">Procesar Menú</button>
+      <button id="exportPDFBtn" disabled>Exportar a PDF</button>
+      <button id="exportImgBtn" disabled>Exportar a Imagen</button>
+    </div>
+    <div id="menuTable"></div>
+  </div>
+</body>
+
+</html>
