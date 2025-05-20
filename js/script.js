@@ -1,8 +1,16 @@
 ﻿const MOMENTOS = [
   { key: "desayuno", label: "Desayuno", aliases: ["desayuno"] },
-  { key: "colacion1", label: "Colación / Snack 1", aliases: ["colación", "colacion", "snack"] },
+  {
+    key: "colacion1",
+    label: "Colación / Snack 1",
+    aliases: ["colación", "colacion", "snack"],
+  },
   { key: "comida", label: "Comida", aliases: ["comida"] },
-  { key: "colacion2", label: "Colación / Snack 2", aliases: ["colación", "colacion", "snack"] },
+  {
+    key: "colacion2",
+    label: "Colación / Snack 2",
+    aliases: ["colación", "colacion", "snack"],
+  },
   { key: "cena", label: "Cena", aliases: ["cena"] },
 ];
 
@@ -16,15 +24,13 @@ const DIAS = [
   "Domingo",
 ];
 
-// Detecta el momento del día por nombre de sección
+let currentMenuPorDia = {}; // Almacena el estado del menú parseado
+
+// Detecta el momento del día por nombre de sección (alineado con tu lógica original)
 function getMomentoKey(sectionName, usedMoments) {
   const name = sectionName.trim().toLowerCase();
   for (const momento of MOMENTOS) {
-    if (
-      momento.aliases.some((alias) =>
-        name.startsWith(alias)
-      )
-    ) {
+    if (momento.aliases.some((alias) => name.startsWith(alias))) {
       // Si ya se usó este momento, y hay dos colaciones, asigna a la segunda colación
       if (
         momento.key.startsWith("colacion") &&
@@ -37,28 +43,31 @@ function getMomentoKey(sectionName, usedMoments) {
       }
     }
   }
-  // Si no se encuentra, asigna a un momento genérico
-  return `momento${usedMoments.length}`;
+  // Fallback original si no se encuentra un match específico
+  return `momento_no_mapeado_${usedMoments.length}`; // Fallback más descriptivo
 }
 
-// Utilidad para parsear el texto a estructura de datos por momento y días
+// Parsea el texto a estructura por momento y día (alineado con tu lógica original)
 function parseMenu(text) {
   const lines = text.split("\n").map((l) => l.trimEnd());
   const categorias = [];
   let currentCategoria = null;
   let currentOpcion = null;
   let currentPlatillo = null;
-  let usedMoments = [];
+  let usedMoments = []; // Reiniciar para cada parseo
 
   for (let line of lines) {
-    if (!line.trim()) continue;
+    const trimmedLine = line.trim();
+    if (!trimmedLine) continue;
 
     // Categoría (sin indentación)
     if (/^[^\s]/.test(line)) {
-      const momentoKey = getMomentoKey(line.trim(), usedMoments);
-      usedMoments.push(momentoKey);
+      // Usar trimmedLine para getMomentoKey
+      const momentoKey = getMomentoKey(trimmedLine, usedMoments);
+      usedMoments.push(momentoKey); // Actualización simple e inmediata
+
       currentCategoria = {
-        name: line.trim(),
+        name: trimmedLine,
         momentoKey,
         options: [],
       };
@@ -69,7 +78,8 @@ function parseMenu(text) {
     }
 
     // Opción (2 espacios)
-    if (/^  [^\s]/.test(line)) {
+    // Asegurarse de que currentCategoria no sea null (ej. si la primera línea no es categoría)
+    if (/^  [^\s]/.test(line) && currentCategoria) {
       const match = line.match(/^  (.+?)\s*-\s*(\d+)\s*d[ií]as?$/i);
       if (match) {
         currentOpcion = {
@@ -84,9 +94,10 @@ function parseMenu(text) {
     }
 
     // Platillo (4 espacios)
-    if (/^    [^\s]/.test(line)) {
+    // Asegurarse de que currentOpcion no sea null
+    if (/^    [^\s]/.test(line) && currentOpcion) {
       currentPlatillo = {
-        name: line.trim(),
+        name: trimmedLine, // Usar trimmedLine
         ingredients: [],
       };
       currentOpcion.dishes.push(currentPlatillo);
@@ -94,15 +105,21 @@ function parseMenu(text) {
     }
 
     // Ingrediente (6 espacios)
-    if (/^      [^\s]/.test(line)) {
-      const ingMatch = line
-        .trim()
-        .match(/^(.+?)\s*\|\s*(.+?)\s*\|\s*(.+)$/);
+    // Asegurarse de que currentPlatillo no sea null
+    if (/^      [^\s]/.test(line) && currentPlatillo) {
+      const ingMatch = trimmedLine.match(/^(.+?)\s*\|\s*(.+?)\s*\|\s*(.+)$/);
       if (ingMatch) {
         currentPlatillo.ingredients.push({
           name: ingMatch[1].trim(),
           qty: ingMatch[2].trim(),
           unit: ingMatch[3].trim(),
+        });
+      } else {
+        // Si no hay formato con |, tomar toda la línea como nombre
+        currentPlatillo.ingredients.push({
+          name: trimmedLine,
+          qty: "",
+          unit: "",
         });
       }
       continue;
@@ -111,49 +128,57 @@ function parseMenu(text) {
 
   // Distribuye las opciones por días para cada momento
   const menuPorDia = {};
-  for (let i = 0; i < 7; i++) {
+  DIAS.forEach((_, i) => {
     menuPorDia[i] = {};
-  }
+    MOMENTOS.forEach((momento) => {
+      menuPorDia[i][momento.key] = null; // Inicializar todos los momentos para todos los días
+    });
+  });
 
-  // Mapea por momentoKey, no por índice
   for (const momento of MOMENTOS) {
-    const cat = categorias.find(
-      (c) => c.momentoKey === momento.key
-    );
-    let opciones = [];
-    if (cat) {
-      cat.options.forEach((op) => {
-        for (let i = 0; i < op.days; i++) {
-          opciones.push(op);
+    let opcionesDelMomentoAcumuladas = [];
+    // Filtrar categorías que coincidan con la momento.key actual
+    // Esto es crucial: solo tomamos las categorías que getMomentoKey asignó correctamente
+    categorias
+      .filter((cat) => cat.momentoKey === momento.key)
+      .forEach((cat) => {
+        if (cat.options) {
+          cat.options.forEach((op) => {
+            for (let i = 0; i < op.days; i++) {
+              opcionesDelMomentoAcumuladas.push(op);
+            }
+          });
         }
       });
+
+    // Rellenar o truncar para que haya exactamente una opción por día (o null)
+    while (opcionesDelMomentoAcumuladas.length < DIAS.length) {
+      opcionesDelMomentoAcumuladas.push(null);
     }
-    // Si hay menos de 7, rellena con vacío
-    while (opciones.length < 7) opciones.push(null);
-    // Si hay más de 7, recorta
-    opciones = opciones.slice(0, 7);
-    for (let d = 0; d < 7; d++) {
-      menuPorDia[d][momento.key] = opciones[d];
+    opcionesDelMomentoAcumuladas = opcionesDelMomentoAcumuladas.slice(
+      0,
+      DIAS.length
+    );
+
+    for (let d = 0; d < DIAS.length; d++) {
+      menuPorDia[d][momento.key] = opcionesDelMomentoAcumuladas[d];
     }
   }
-
   return menuPorDia;
 }
 
-// Renderiza la tabla tipo calendario semanal
-function renderMenuTable(menuPorDia) {
+// Renderiza la tabla (lógica de D&D y hover como tu original)
+function renderMenuTable(menuData) {
+  currentMenuPorDia = menuData; // Actualiza el estado global
   const menuTableDiv = document.getElementById("menuTable");
   menuTableDiv.innerHTML = "";
 
-  // Crea la tabla
   const table = document.createElement("table");
   table.className = "menu-table";
 
-  // Encabezado
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");
   const thEmpty = document.createElement("th");
-  thEmpty.textContent = "";
   headRow.appendChild(thEmpty);
   DIAS.forEach((dia) => {
     const th = document.createElement("th");
@@ -163,47 +188,43 @@ function renderMenuTable(menuPorDia) {
   thead.appendChild(headRow);
   table.appendChild(thead);
 
-  // Cuerpo
   const tbody = document.createElement("tbody");
-
-  MOMENTOS.forEach((momento, mIdx) => {
+  MOMENTOS.forEach((momento) => {
     const tr = document.createElement("tr");
     tr.className = `row-${momento.key}`;
 
-    // Etiqueta del momento
     const tdLabel = document.createElement("td");
     tdLabel.className = "moment-label";
     tdLabel.textContent = momento.label;
     tr.appendChild(tdLabel);
 
-    // Celdas de los días
-    for (let d = 0; d < 7; d++) {
+    for (let d = 0; d < DIAS.length; d++) {
       const td = document.createElement("td");
-      const opcion = menuPorDia[d][momento.key];
+      const opcion = currentMenuPorDia[d]?.[momento.key];
+
       if (opcion) {
         const card = document.createElement("div");
         card.className = "menu-card";
         card.setAttribute("draggable", "true");
         card.dataset.momento = momento.key;
-        card.dataset.dia = d;
+        card.dataset.dia = d.toString();
 
-        // Drag events
         card.addEventListener("dragstart", (e) => {
           card.classList.add("dragging");
           e.dataTransfer.setData(
             "text/plain",
-            JSON.stringify({
-              momento: momento.key,
-              dia: d,
-            })
+            JSON.stringify({ momento: momento.key, dia: d })
           );
+          e.dataTransfer.effectAllowed = "move";
         });
+
         card.addEventListener("dragend", () => {
           card.classList.remove("dragging");
           document
             .querySelectorAll(".menu-card.over")
             .forEach((el) => el.classList.remove("over"));
         });
+
         card.addEventListener("dragover", (e) => {
           e.preventDefault();
           const dragging = document.querySelector(".menu-card.dragging");
@@ -215,63 +236,74 @@ function renderMenuTable(menuPorDia) {
             card.classList.add("over");
           }
         });
+
         card.addEventListener("dragleave", () => {
           card.classList.remove("over");
         });
+
         card.addEventListener("drop", (e) => {
           e.preventDefault();
           card.classList.remove("over");
-          const data = JSON.parse(e.dataTransfer.getData("text/plain"));
+          const dataText = e.dataTransfer.getData("text/plain");
+          if (!dataText) return;
+          const data = JSON.parse(dataText);
+
           if (
             data.momento === momento.key &&
-            data.dia != d
+            data.dia.toString() !== card.dataset.dia
           ) {
-            // Swap
-            const temp = menuPorDia[data.dia][momento.key];
-            menuPorDia[data.dia][momento.key] = menuPorDia[d][momento.key];
-            menuPorDia[d][momento.key] = temp;
-            renderMenuTable(menuPorDia);
+            const sourceDia = parseInt(data.dia);
+            const targetDia = parseInt(card.dataset.dia);
+
+            const temp = currentMenuPorDia[sourceDia][momento.key];
+            currentMenuPorDia[sourceDia][momento.key] =
+              currentMenuPorDia[targetDia][momento.key];
+            currentMenuPorDia[targetDia][momento.key] = temp;
+            renderMenuTable(currentMenuPorDia);
           }
         });
 
-        // Visual feedback
         card.addEventListener("mouseenter", () => {
-          card.style.boxShadow =
-            "0 0 0 3px #4f8cff55, 0 2px 8px #0001";
+          if (!card.classList.contains("dragging")) {
+            card.style.boxShadow = "0 0 0 3px #4f8cff55, 0 2px 8px #0001";
+          }
         });
         card.addEventListener("mouseleave", () => {
           card.style.boxShadow = "";
         });
 
-        // Card content
         const optTitle = document.createElement("div");
         optTitle.className = "option-title";
         optTitle.textContent = opcion.title;
         card.appendChild(optTitle);
 
-        const dishesList = document.createElement("ul");
-        dishesList.className = "dishes-list";
-        opcion.dishes.forEach((dish) => {
-          const dishLi = document.createElement("li");
-          const dishTitle = document.createElement("div");
-          dishTitle.className = "dish-title";
-          dishTitle.textContent = dish.name;
-          dishLi.appendChild(dishTitle);
+        if (opcion.dishes && opcion.dishes.length > 0) {
+          const dishesList = document.createElement("ul");
+          dishesList.className = "dishes-list";
+          opcion.dishes.forEach((dish) => {
+            const dishLi = document.createElement("li");
+            const dishTitle = document.createElement("div");
+            dishTitle.className = "dish-title";
+            dishTitle.textContent = dish.name;
+            dishLi.appendChild(dishTitle);
 
-          if (dish.ingredients.length) {
-            const ingList = document.createElement("ul");
-            ingList.className = "ingredients-list";
-            dish.ingredients.forEach((ing) => {
-              const ingLi = document.createElement("li");
-              ingLi.textContent = `${ing.name} | ${ing.qty} | ${ing.unit}`;
-              ingList.appendChild(ingLi);
-            });
-            dishLi.appendChild(ingList);
-          }
-          dishesList.appendChild(dishLi);
-        });
-        card.appendChild(dishesList);
-
+            if (dish.ingredients && dish.ingredients.length > 0) {
+              const ingList = document.createElement("ul");
+              ingList.className = "ingredients-list";
+              dish.ingredients.forEach((ing) => {
+                const ingLi = document.createElement("li");
+                let ingText = ing.name;
+                if (ing.qty) ingText += ` | ${ing.qty}`;
+                if (ing.unit) ingText += ` | ${ing.unit}`;
+                ingLi.textContent = ingText;
+                ingList.appendChild(ingLi);
+              });
+              dishLi.appendChild(ingList);
+            }
+            dishesList.appendChild(dishLi);
+          });
+          card.appendChild(dishesList);
+        }
         td.appendChild(card);
       }
       tr.appendChild(td);
@@ -282,85 +314,157 @@ function renderMenuTable(menuPorDia) {
   table.appendChild(tbody);
   menuTableDiv.appendChild(table);
 
-  // Habilita exportar
   document.getElementById("exportPDFBtn").disabled = false;
   document.getElementById("exportImgBtn").disabled = false;
 }
 
-// Exportar a PDF y abrir en nueva pestaña con controles de PDF
+// Exportar a PDF
 function exportToPDF() {
-  const menuTable = document.getElementById("menuTable");
-  html2canvas(menuTable, {
-    scale: 2,
+  const menuTableElement = document.querySelector("#menuTable .menu-table");
+  if (!menuTableElement) return;
+
+  const appMain = document.querySelector(".app-main");
+  const originalAppMainOverflow = appMain.style.overflowY;
+  appMain.style.overflowY = "visible";
+  const menuTableContainer = document.getElementById("menuTableContainer");
+  const originalTableContainerOverflow = menuTableContainer.style.overflowX;
+  menuTableContainer.style.overflowX = "visible";
+
+  html2canvas(menuTableElement, {
+    scale: 1.5,
     useCORS: true,
-    backgroundColor: null,
-    scrollY: -window.scrollY,
-  }).then((canvas) => {
-    // Tamaño carta en puntos (1 pulgada = 72pt)
-    const pageWidth = 612; // 8.5in * 72
-    const pageHeight = 792; // 11in * 72
+    backgroundColor: getComputedStyle(document.body)
+      .getPropertyValue("--bg-table")
+      .trim(),
+  })
+    .then((canvas) => {
+      appMain.style.overflowY = originalAppMainOverflow;
+      menuTableContainer.style.overflowX = originalTableContainerOverflow;
 
-    // Calcula el tamaño de la imagen para que quepa en el ancho de la hoja, sin deformar
-    const imgWidth = pageWidth - 40;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const pageWidth = 8.5 * 72;
+      const pageHeight = 11 * 72;
+      const margin = 0.5 * 72;
+      const availableWidth = pageWidth - 2 * margin;
+      const availableHeight = pageHeight - 2 * margin;
+      let imgWidth = canvas.width;
+      let imgHeight = canvas.height;
+      let ratio = imgWidth / imgHeight;
 
-    // Si la imagen es más alta que la hoja, ajusta el alto de la hoja
-    const pdfHeight = imgHeight + 40 > pageHeight ? imgHeight + 40 : pageHeight;
+      if (imgWidth > availableWidth) {
+        imgWidth = availableWidth;
+        imgHeight = imgWidth / ratio;
+      }
+      if (imgHeight > availableHeight) {
+        imgHeight = availableHeight;
+        imgWidth = imgHeight * ratio;
+      }
+      if (imgWidth > availableWidth) {
+        imgWidth = availableWidth;
+        imgHeight = imgWidth / ratio;
+      }
 
-    const pdf = new window.jspdf.jsPDF({
-      orientation: "portrait",
-      unit: "pt",
-      format: [pageWidth, pdfHeight],
+      const pdf = new window.jspdf.jsPDF({
+        orientation: imgWidth > imgHeight ? "landscape" : "portrait",
+        unit: "pt",
+        format: "letter",
+      });
+      pdf.addImage(
+        canvas.toDataURL("image/png"),
+        "PNG",
+        margin,
+        margin,
+        imgWidth,
+        imgHeight
+      );
+      const blob = pdf.output("blob");
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+    })
+    .catch((err) => {
+      console.error("Error al exportar a PDF:", err);
+      appMain.style.overflowY = originalAppMainOverflow;
+      menuTableContainer.style.overflowX = originalTableContainerOverflow;
     });
-
-    const imgData = canvas.toDataURL("image/png");
-    pdf.addImage(
-      imgData,
-      "PNG",
-      20,
-      20,
-      imgWidth,
-      imgHeight
-    );
-    // Abre el PDF en una nueva pestaña con controles de PDF
-    const blob = pdf.output("blob");
-    const url = URL.createObjectURL(blob);
-    window.open(url, "_blank");
-  });
 }
 
 // Exportar a imagen PNG
 function exportToImage() {
-  const menuTable = document.getElementById("menuTable");
-  html2canvas(menuTable, {
+  const menuTableElement = document.querySelector("#menuTable .menu-table");
+  if (!menuTableElement) return;
+
+  const appMain = document.querySelector(".app-main");
+  const originalAppMainOverflow = appMain.style.overflowY;
+  appMain.style.overflowY = "visible";
+  const menuTableContainer = document.getElementById("menuTableContainer");
+  const originalTableContainerOverflow = menuTableContainer.style.overflowX;
+  menuTableContainer.style.overflowX = "visible";
+
+  html2canvas(menuTableElement, {
     scale: 2,
     useCORS: true,
-    backgroundColor: null,
-    scrollY: -window.scrollY,
-  }).then((canvas) => {
-    const dataUrl = canvas.toDataURL("image/png");
-    const win = window.open();
-    win.document.write(
-      `<html><head><title>Menu Semanal</title></head><body style="margin:0;background:#181c24;"><img src="${dataUrl}" style="width:100%;display:block;"/></body></html>`
-    );
-  });
+    backgroundColor: getComputedStyle(document.body)
+      .getPropertyValue("--bg-table")
+      .trim(),
+  })
+    .then((canvas) => {
+      appMain.style.overflowY = originalAppMainOverflow;
+      menuTableContainer.style.overflowX = originalTableContainerOverflow;
+
+      const dataUrl = canvas.toDataURL("image/png");
+      const win = window.open();
+      win.document.write(
+        `<html><head><title>Menu Semanal</title></head><body style="margin:0;background:var(--bg-main); display:flex; justify-content:center; align-items:center; min-height:100vh;"><img src="${dataUrl}" style="max-width:100%;max-height:100vh;display:block;"/></body></html>`
+      );
+    })
+    .catch((err) => {
+      console.error("Error al exportar a Imagen:", err);
+      appMain.style.overflowY = originalAppMainOverflow;
+      menuTableContainer.style.overflowX = originalTableContainerOverflow;
+    });
 }
 
-// Eventos
+// Eventos y control de visibilidad
 document.addEventListener("DOMContentLoaded", () => {
-  let menuPorDia = {};
+  const inputText = document.getElementById("inputText");
+  const inputArea = document.querySelector(".input-area");
+  const menuTableContainer = document.getElementById("menuTableContainer");
+  const parseBtn = document.getElementById("parseBtn");
+  const exportPDFBtn = document.getElementById("exportPDFBtn");
+  const exportImgBtn = document.getElementById("exportImgBtn");
 
-  document.getElementById("parseBtn").addEventListener("click", () => {
-    const text = document.getElementById("inputText").value;
-    menuPorDia = parseMenu(text);
-    renderMenuTable(menuPorDia);
+  inputArea.classList.remove("hidden");
+  menuTableContainer.classList.add("hidden");
+
+  parseBtn.addEventListener("click", () => {
+    const text = inputText.value;
+    if (!text.trim()) {
+      alert("Por favor, pega el texto del menú antes de procesar.");
+      inputArea.classList.remove("hidden");
+      menuTableContainer.classList.add("hidden");
+      exportPDFBtn.disabled = true;
+      exportImgBtn.disabled = true;
+      return;
+    }
+    const parsedMenu = parseMenu(text);
+    renderMenuTable(parsedMenu);
+
+    inputArea.classList.add("hidden");
+    menuTableContainer.classList.remove("hidden");
   });
 
-  document
-    .getElementById("exportPDFBtn")
-    .addEventListener("click", exportToPDF);
+  exportPDFBtn.addEventListener("click", () => {
+    if (Object.keys(currentMenuPorDia).length === 0 || !currentMenuPorDia[0]) { // Chequeo más robusto
+      alert("Primero procesa un menú para poder exportarlo.");
+      return;
+    }
+    exportToPDF();
+  });
 
-  document
-    .getElementById("exportImgBtn")
-    .addEventListener("click", exportToImage);
+  exportImgBtn.addEventListener("click", () => {
+    if (Object.keys(currentMenuPorDia).length === 0 || !currentMenuPorDia[0]) { // Chequeo más robusto
+      alert("Primero procesa un menú para poder exportarlo.");
+      return;
+    }
+    exportToImage();
+  });
 });

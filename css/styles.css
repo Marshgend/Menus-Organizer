@@ -1,9 +1,12 @@
 ﻿:root {
   --bg-main: #181c24;
   --bg-table: #23283a;
+  --bg-header-app: #1f232e;
   --text-main: #f3f6fa;
   --text-secondary: #b0b8c9;
   --border-table: #2a3142;
+  --border-strong: #353d52;
+  /* Un borde más notable para sticky headers */
   --moment-desayuno: #2d6a4f;
   --moment-desayuno-dark: #1e3d2c;
   --moment-desayuno-card: #24543e;
@@ -19,54 +22,66 @@
   --moment-cena: #1d3557;
   --moment-cena-dark: #14213d;
   --moment-cena-card: #19294a;
+  --action-blue: #4f8cff;
+  --action-blue-hover: #6fa1ff;
+  --action-blue-disabled: #3a4666;
+  --shadow-color: #0000004d;
+  --shadow-light: #00000026;
+  --header-height: 60px;
+  /* Altura estimada del app-header */
 }
 
 body {
-  font-family: 'Segoe UI', Arial, sans-serif;
+  font-family: "Segoe UI", Arial, sans-serif;
   background: var(--bg-main);
   color: var(--text-main);
   margin: 0;
   padding: 0;
+  height: 100vh;
+  display: flex;
+  /* Para que app-container ocupe todo */
+  flex-direction: column;
 }
 
-.container {
-  width: 98vw;
-  max-width: 1800px;
-  margin: 24px auto 24px auto;
-  background: var(--bg-main);
-  border-radius: 16px;
-  box-shadow: 0 4px 24px #0004;
-  padding: 16px 1vw 32px 1vw;
-}
-
-h1 {
-  text-align: center;
-  margin-bottom: 18px;
-  color: var(--text-main);
-}
-
-textarea {
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   width: 100%;
-  border-radius: 8px;
-  border: 1px solid var(--border-table);
-  background: #23283a;
+  overflow: hidden;
+  /* Evita doble scrollbar si app-main maneja el suyo */
+}
+
+.app-header {
+  background: var(--bg-header-app);
+  padding: 0 24px;
+  /* Ajustado para altura fija */
+  height: var(--header-height);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 8px var(--shadow-color);
+  position: sticky;
+  /* Header fijo en la parte superior de la ventana */
+  top: 0;
+  z-index: 1000;
+  /* Muy alto para estar sobre todo */
+  flex-shrink: 0;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.5em;
   color: var(--text-main);
-  padding: 12px;
-  font-size: 1rem;
-  margin-top: 32px;
-  margin-bottom: 0;
-  resize: vertical;
 }
 
 .actions {
   display: flex;
   gap: 12px;
-  margin-bottom: 18px;
-  justify-content: center;
 }
 
 button {
-  background: #4f8cff;
+  background: var(--action-blue);
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -76,84 +91,175 @@ button {
   transition: background 0.2s;
 }
 
+button:hover:not(:disabled) {
+  background: var(--action-blue-hover);
+}
+
 button:disabled {
-  background: #3a4666;
+  background: var(--action-blue-disabled);
   cursor: not-allowed;
 }
 
-#menuTable {
-  margin-top: 12px;
+.app-main {
+  flex-grow: 1;
+  padding: 24px;
+  overflow-y: auto;
+  /* Scroll principal aquí */
+  overflow-x: hidden;
+  /* Evitar scroll horizontal innecesario en app-main */
+  display: flex;
+  flex-direction: column;
+}
+
+.input-area {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 24px;
+  /* Espacio si la tabla aparece debajo */
+}
+
+textarea {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--border-table);
+  background: var(--bg-table);
+  color: var(--text-main);
+  padding: 12px;
+  font-size: 1rem;
+  resize: vertical;
+  min-height: 150px;
+  /* Más altura inicial */
+  box-sizing: border-box;
+}
+
+#menuTableContainer {
+  flex-grow: 1;
+  /* Ocupa el espacio restante si es necesario */
   overflow-x: auto;
+  /* Scroll horizontal para la tabla si es muy ancha */
+  border-radius: 12px;
+  background: var(--bg-table);
+  /* Fondo para el área de la tabla */
+}
+
+#menuTableContainer.hidden {
+  display: none;
+}
+
+.input-area.hidden {
+  display: none;
 }
 
 .menu-table {
   border-collapse: separate;
+  /* Necesario para border-spacing y sticky */
   border-spacing: 0;
   width: 100%;
   min-width: 900px;
-  background: var(--bg-table);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px #0002;
+  /* Ancho mínimo de la tabla */
   table-layout: fixed;
 }
 
 .menu-table th,
 .menu-table td {
   padding: 0;
+  /* El padding estará en el contenido o en la tarjeta */
   vertical-align: top;
-}
-
-.menu-table th {
-  background: #23283a;
-  color: var(--text-main);
-  font-size: 1.1em;
-  font-weight: bold;
-  text-align: center;
-  padding: 12px 0;
-  border-bottom: 2px solid var(--border-table);
-  position: sticky;
-  top: 0;
-  z-index: 20;
-}
-
-.menu-table tr:not(:last-child) td {
   border-bottom: 1px solid var(--border-table);
 }
 
 .menu-table td {
-  min-width: 180px;
-  max-width: 320px;
-  padding: 0;
   border-right: 1px solid var(--border-table);
 }
 
+.menu-table th:last-child,
 .menu-table td:last-child {
   border-right: none;
 }
 
-/* Colores de fondo por momento del día */
-.row-desayuno td {
+.menu-table tr:last-child td {
+  border-bottom: none;
+  /* Quitar borde inferior de la última fila */
+}
+
+/* --- Sticky Headers --- */
+.menu-table thead th {
+  background: var(--bg-header-app);
+  /* Mismo fondo que el header de la app */
+  color: var(--text-main);
+  font-size: 1.1em;
+  font-weight: bold;
+  text-align: center;
+  padding: 12px 8px;
+  position: sticky;
+  top: 0;
+  /* Se pega al borde superior del viewport de scroll (.app-main) */
+  z-index: 30;
+  border-bottom: 2px solid var(--border-strong);
+}
+
+/* Borde derecho para los th de días */
+.menu-table thead th:not(:first-child) {
+  border-right: 1px solid var(--border-table);
+}
+
+/* Celda vacía de la esquina superior izquierda */
+.menu-table thead th:first-child {
+  left: 0;
+  /* Sticky a la izquierda también */
+  z-index: 40;
+  /* Encima de los labels de momento y headers de día */
+  border-right: 2px solid var(--border-strong);
+}
+
+.menu-table .moment-label {
+  font-weight: bold;
+  font-size: 1.1em;
+  text-align: right;
+  padding: 12px 10px;
+  color: var(--text-main);
+  min-width: 150px;
+  /* Ancho de la columna de momentos */
+  max-width: 180px;
+  position: sticky;
+  left: 0;
+  z-index: 20;
+  /* Debajo de th:first-child pero encima de las celdas */
+  border-right: 2px solid var(--border-strong);
+}
+
+/* --- Fin Sticky Headers --- */
+
+.menu-table td:not(.moment-label) {
+  min-width: 180px;
+  /* Ancho mínimo para celdas de opciones */
+  max-width: 320px;
+  padding: 0;
+  /* El padding estará en la tarjeta */
+}
+
+/* Colores de fondo por momento del día para las celdas de datos (TDs que no son moment-label) */
+.row-desayuno td:not(.moment-label) {
   background: var(--moment-desayuno);
 }
 
-.row-colacion1 td {
+.row-colacion1 td:not(.moment-label) {
   background: var(--moment-colacion1);
 }
 
-.row-comida td {
+.row-comida td:not(.moment-label) {
   background: var(--moment-comida);
 }
 
-.row-colacion2 td {
+.row-colacion2 td:not(.moment-label) {
   background: var(--moment-colacion2);
 }
 
-.row-cena td {
+.row-cena td:not(.moment-label) {
   background: var(--moment-cena);
 }
 
-/* Encabezados de fila con color más oscuro */
+/* Colores de fondo para las etiquetas de momento (primera columna) */
 .row-desayuno .moment-label {
   background: var(--moment-desayuno-dark);
 }
@@ -174,61 +280,56 @@ button:disabled {
   background: var(--moment-cena-dark);
 }
 
-.menu-table .moment-label {
-  font-weight: bold;
-  font-size: 1.1em;
-  text-align: right;
-  padding-right: 10px;
-  color: var(--text-main);
-  min-width: 120px;
-  border-right: 2px solid var(--border-table);
-  position: sticky;
-  left: 0;
-  z-index: 21;
-}
-
-/* Fondo de las tarjetas según la categoría */
-.row-desayuno .menu-card {
-  background: var(--moment-desayuno-card) !important;
-}
-
-.row-colacion1 .menu-card {
-  background: var(--moment-colacion1-card) !important;
-}
-
-.row-comida .menu-card {
-  background: var(--moment-comida-card) !important;
-}
-
-.row-colacion2 .menu-card {
-  background: var(--moment-colacion2-card) !important;
-}
-
-.row-cena .menu-card {
-  background: var(--moment-cena-card) !important;
-}
-
 .menu-card {
   margin: 8px;
   border-radius: 10px;
-  box-shadow: 0 1px 4px #0002;
+  box-shadow: 0 1px 4px var(--shadow-light);
   padding: 12px 10px 10px 10px;
   cursor: grab;
-  transition: box-shadow 0.2s, background 0.2s;
+  transition: box-shadow 0.2s, background-color 0.2s, border-color 0.2s;
   border: 2px solid transparent;
   min-height: 120px;
   position: relative;
   color: var(--text-main);
+  box-sizing: border-box;
+}
+
+/* Colores de fondo para las tarjetas */
+.row-desayuno .menu-card {
+  background-color: var(--moment-desayuno-card);
+}
+
+.row-colacion1 .menu-card {
+  background-color: var(--moment-colacion1-card);
+}
+
+.row-comida .menu-card {
+  background-color: var(--moment-comida-card);
+}
+
+.row-colacion2 .menu-card {
+  background-color: var(--moment-colacion2-card);
+}
+
+.row-cena .menu-card {
+  background-color: var(--moment-cena-card);
+}
+
+/* Feedback visual para Drag & Drop y Hover */
+.menu-card:hover {
+  box-shadow: 0 0 0 2px var(--action-blue-hover), 0 2px 8px var(--shadow-color);
 }
 
 .menu-card.dragging {
   opacity: 0.6;
-  box-shadow: 0 0 0 3px #4f8cff55;
+  box-shadow: 0 0 0 3px var(--action-blue);
+  cursor: grabbing;
 }
 
 .menu-card.over {
-  border: 2px dashed #4f8cff;
-  background: #2a3142 !important;
+  border: 2px dashed var(--action-blue);
+  background-color: #2a3142 !important;
+  /* Un fondo genérico para el drop target */
 }
 
 .menu-card .option-title {
@@ -254,7 +355,7 @@ button:disabled {
 .menu-card .ingredients-list {
   margin-left: 12px;
   font-size: 0.97em;
-  color: #b0b8c9;
+  color: var(--text-secondary);
   list-style: disc;
 }
 
@@ -262,15 +363,71 @@ button:disabled {
   .menu-table {
     min-width: 700px;
   }
+
+  .app-header {
+    padding: 0 16px;
+    height: auto;
+    /* Permitir que se ajuste si el contenido se envuelve */
+    min-height: var(--header-height);
+    flex-wrap: wrap;
+    /* Permitir que los botones se envuelvan en pantallas pequeñas */
+    gap: 8px;
+  }
+
+  .app-header h1 {
+    font-size: 1.3em;
+    margin-bottom: 4px;
+    /* Espacio si los botones se envuelven */
+  }
+
+  .actions {
+    flex-basis: 100%;
+    /* Ocupar todo el ancho si se envuelven */
+    justify-content: flex-start;
+  }
+
+  .app-main {
+    padding: 16px;
+  }
 }
 
 @media (max-width: 700px) {
+  .app-main {
+    padding: 12px;
+  }
+
+  .app-header {
+    padding: 10px 12px;
+  }
+
   .menu-table {
-    min-width: 500px;
+    min-width: 100%;
+    /* Permitir que se encoja más */
   }
 
   .menu-card {
-    min-width: 0;
-    max-width: 100%;
+    font-size: 0.9em;
+    padding: 8px;
+    min-height: 100px;
+  }
+
+  .menu-table .moment-label {
+    min-width: 100px;
+    font-size: 1em;
+    padding: 10px 6px;
+  }
+
+  .menu-table thead th {
+    font-size: 1em;
+    padding: 10px 4px;
+  }
+
+  button {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
+
+  textarea {
+    min-height: 120px;
   }
 }
