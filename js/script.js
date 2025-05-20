@@ -25,7 +25,45 @@ const DIAS = [
 ];
 
 let currentMenuPorDia = {};
+const LOCAL_STORAGE_KEY = "weeklyMenuData";
 
+// --- Funciones de Persistencia ---
+function saveMenuState() {
+  if (Object.keys(currentMenuPorDia).length > 0) {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(currentMenuPorDia));
+    console.log("Estado del menú guardado en localStorage.");
+  } else {
+    localStorage.removeItem(LOCAL_STORAGE_KEY); // Limpiar si no hay datos
+    console.log("No hay datos de menú para guardar, localStorage limpiado.");
+  }
+}
+
+function loadMenuState() {
+  const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+  if (savedData) {
+    try {
+      const parsedData = JSON.parse(savedData);
+      // Validar que parsedData tenga la estructura esperada (simple check)
+      if (parsedData && typeof parsedData === "object" && parsedData[0]) {
+        currentMenuPorDia = parsedData;
+        console.log("Estado del menú cargado desde localStorage.");
+        return true;
+      } else {
+        console.warn("Datos en localStorage no tienen formato esperado, ignorando.");
+        localStorage.removeItem(LOCAL_STORAGE_KEY); // Limpiar datos inválidos
+        return false;
+      }
+    } catch (error) {
+      console.error("Error al parsear datos de localStorage:", error);
+      localStorage.removeItem(LOCAL_STORAGE_KEY); // Limpiar datos corruptos
+      return false;
+    }
+  }
+  console.log("No se encontró estado del menú en localStorage.");
+  return false;
+}
+
+// --- Funciones Principales ---
 function getMomentoKey(sectionName, usedMoments) {
   const name = sectionName.trim().toLowerCase();
   for (const momento of MOMENTOS) {
@@ -144,11 +182,12 @@ function parseMenu(text) {
       menuPorDia[d][momento.key] = opcionesDelMomentoAcumuladas[d];
     }
   }
+  currentMenuPorDia = menuPorDia; // Actualizar estado global después de parsear
   return menuPorDia;
 }
 
-function renderMenuTable(menuData) {
-  currentMenuPorDia = menuData;
+function renderMenuTable(menuDataToRender) {
+  // Usar menuDataToRender para renderizar, currentMenuPorDia es el estado global
   const menuTableDiv = document.getElementById("menuTable");
   menuTableDiv.innerHTML = "";
 
@@ -178,7 +217,7 @@ function renderMenuTable(menuData) {
 
     for (let d = 0; d < DIAS.length; d++) {
       const td = document.createElement("td");
-      const opcion = currentMenuPorDia[d]?.[momento.key];
+      const opcion = menuDataToRender[d]?.[momento.key]; // Usar datos pasados
       if (opcion) {
         const card = document.createElement("div");
         card.className = "menu-card";
@@ -226,11 +265,13 @@ function renderMenuTable(menuData) {
           ) {
             const sourceDia = parseInt(data.dia);
             const targetDia = parseInt(card.dataset.dia);
+            // Modificar currentMenuPorDia directamente
             const temp = currentMenuPorDia[sourceDia][momento.key];
             currentMenuPorDia[sourceDia][momento.key] =
               currentMenuPorDia[targetDia][momento.key];
             currentMenuPorDia[targetDia][momento.key] = temp;
-            renderMenuTable(currentMenuPorDia);
+            renderMenuTable(currentMenuPorDia); // Re-render con el estado global actualizado
+            saveMenuState(); // Guardar después de reordenar
           }
         });
         card.addEventListener("mouseenter", () => {
@@ -280,7 +321,8 @@ function renderMenuTable(menuData) {
   });
   table.appendChild(tbody);
   menuTableDiv.appendChild(table);
-  document.getElementById("exportPDFBtn").disabled = false;
+  document.getElementById("exportPDFBtn").disabled =
+    Object.keys(menuDataToRender).length === 0 || !menuDataToRender[0];
 }
 
 function exportToPDF() {
@@ -292,27 +334,14 @@ function exportToPDF() {
     alert("No se encontró la tabla del menú para exportar.");
     return;
   }
-
   console.log("Iniciando exportación a PDF (Estrategia de Clonación)...");
-
-  // 1. Clonar la tabla
   const clonedTableElement = originalTableElement.cloneNode(true);
-
-  // 2. Aplicar estilos de impresión y simplificaciones al CLON
   clonedTableElement.classList.add("print-mode");
-  // La clase .print-mode ya debería poner position:static a los sticky headers.
-  // Si se necesita forzar más:
-  // const stickyInClone = clonedTableElement.querySelectorAll("thead th, .moment-label");
-  // stickyInClone.forEach(el => el.style.position = 'static !important');
-
-  // 3. Añadir el clon al DOM (oculto) para que html2canvas lo procese
   clonedTableElement.style.position = "absolute";
   clonedTableElement.style.left = "-9999px";
   clonedTableElement.style.top = "-9999px";
-  clonedTableElement.style.zIndex = "-1"; // Asegurar que no sea visible
-  // Es importante añadirlo al body para que los estilos computados sean correctos
+  clonedTableElement.style.zIndex = "-1";
   document.body.appendChild(clonedTableElement);
-
   console.log("Clon de tabla creado y añadido al DOM (oculto).");
   console.log(
     "Clon scrollWidth:",
@@ -321,16 +350,14 @@ function exportToPDF() {
     clonedTableElement.scrollHeight
   );
 
-  // 4. Llamar a html2canvas sobre el CLON
   html2canvas(clonedTableElement, {
-    scale: 1.5, // Empezar con una escala razonable
-    backgroundColor: "#ffffff", // El modo print ya tiene fondo blanco
+    scale: 1.5,
+    backgroundColor: "#ffffff",
     useCORS: true,
     logging: true,
     scrollX: 0,
     scrollY: 0,
-    // Usar las dimensiones del clon, que ya no debería tener scroll interno problemático
-    windowWidth: clonedTableElement.offsetWidth, // Usar offsetWidth/Height para el clon
+    windowWidth: clonedTableElement.offsetWidth,
     windowHeight: clonedTableElement.offsetHeight,
   })
     .then((canvas) => {
@@ -340,29 +367,23 @@ function exportToPDF() {
         "x",
         canvas.height
       );
-
-      // 5. Eliminar el clon del DOM
       document.body.removeChild(clonedTableElement);
       console.log("Clon de tabla eliminado del DOM.");
-
-      // 6. Generar y abrir PDF
       console.log("Generando PDF...");
       const imgData = canvas.toDataURL("image/png");
       const pdf = new window.jspdf.jsPDF({
         orientation: "landscape",
         unit: "pt",
-        format: "letter",
+        format: "letter", // Cambiado a letter
       });
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       const margin = 20;
       const imgWidth = pageWidth - 2 * margin;
       let imgHeight = (canvas.height * imgWidth) / canvas.width;
-
       if (imgHeight > pageHeight - 2 * margin) {
         imgHeight = pageHeight - 2 * margin;
       }
-
       pdf.addImage(imgData, "PNG", margin, margin, imgWidth, imgHeight);
       console.log("Generando blob del PDF...");
       const blob = pdf.output("blob");
@@ -373,7 +394,6 @@ function exportToPDF() {
     })
     .catch((err) => {
       console.error("Error durante la exportación a PDF:", err);
-      // Asegurarse de eliminar el clon también en caso de error
       if (document.body.contains(clonedTableElement)) {
         document.body.removeChild(clonedTableElement);
         console.log("Clon de tabla eliminado del DOM después de error.");
@@ -384,29 +404,66 @@ function exportToPDF() {
     });
 }
 
+function resetApplication(
+  inputTextElem,
+  inputAreaElem,
+  menuTableContainerElem,
+  menuTableDivElem,
+  exportPDFBtnElem
+) {
+  console.log("Reiniciando aplicación...");
+  localStorage.removeItem(LOCAL_STORAGE_KEY);
+  currentMenuPorDia = {};
+  if (menuTableDivElem) menuTableDivElem.innerHTML = ""; // Limpiar tabla visualmente
+  if (inputTextElem) inputTextElem.value = ""; // Limpiar textarea
+
+  // Restaurar visibilidad
+  if (inputAreaElem) inputAreaElem.classList.remove("hidden");
+  if (menuTableContainerElem) menuTableContainerElem.classList.add("hidden");
+
+  // Deshabilitar botón de exportar
+  if (exportPDFBtnElem) exportPDFBtnElem.disabled = true;
+
+  console.log("Aplicación reiniciada al estado inicial.");
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   const inputText = document.getElementById("inputText");
   const inputArea = document.querySelector(".input-area");
   const menuTableContainer = document.getElementById("menuTableContainer");
+  const menuTableDiv = document.getElementById("menuTable"); // Para limpiar en reset
   const parseBtn = document.getElementById("parseBtn");
   const exportPDFBtn = document.getElementById("exportPDFBtn");
+  const resetBtn = document.getElementById("resetBtn"); // Nuevo botón
 
-  inputArea.classList.remove("hidden");
-  menuTableContainer.classList.add("hidden");
+  // Intentar cargar estado al inicio
+  if (loadMenuState()) {
+    renderMenuTable(currentMenuPorDia);
+    inputArea.classList.add("hidden");
+    menuTableContainer.classList.remove("hidden");
+    exportPDFBtn.disabled = false;
+  } else {
+    // Estado inicial si no hay datos guardados
+    inputArea.classList.remove("hidden");
+    menuTableContainer.classList.add("hidden");
+    exportPDFBtn.disabled = true;
+  }
 
   parseBtn.addEventListener("click", () => {
     const text = inputText.value;
     if (!text.trim()) {
       alert("Por favor, pega el texto del menú antes de procesar.");
-      inputArea.classList.remove("hidden");
-      menuTableContainer.classList.add("hidden");
-      exportPDFBtn.disabled = true;
+      // No cambiar visibilidad si no hay texto
+      exportPDFBtn.disabled = true; // Asegurar que esté deshabilitado
       return;
     }
-    const parsedMenu = parseMenu(text);
-    renderMenuTable(parsedMenu);
+    const parsedMenu = parseMenu(text); // parseMenu actualiza currentMenuPorDia
+    renderMenuTable(parsedMenu); // renderMenuTable usa currentMenuPorDia
+    saveMenuState(); // Guardar después de parsear y renderizar
+
     inputArea.classList.add("hidden");
     menuTableContainer.classList.remove("hidden");
+    // exportPDFBtn ya se habilita en renderMenuTable
   });
 
   exportPDFBtn.addEventListener("click", () => {
@@ -415,5 +472,15 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     exportToPDF();
+  });
+
+  resetBtn.addEventListener("click", () => {
+    resetApplication(
+      inputText,
+      inputArea,
+      menuTableContainer,
+      menuTableDiv,
+      exportPDFBtn
+    );
   });
 });
