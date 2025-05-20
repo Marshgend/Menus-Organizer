@@ -431,3 +431,104 @@ textarea {
     min-height: 120px;
   }
 }
+
+/* Estilos para la versión de impresión del PDF (Modo Claro) */
+.menu-table.print-mode {
+  background-color: #ffffff !important;
+}
+
+.menu-table.print-mode th,
+/* Estilo general para th y td en modo impresión */
+.menu-table.print-mode td {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border-color: #cccccc !important;
+  /* Líneas grises claras para divisiones */
+  padding: 6px 8px !important;
+  /* Padding uniforme para impresión */
+}
+
+/* Encabezados de días y celda vacía superior izquierda */
+.menu-table.print-mode thead th {
+  background-color: #e9e9e9 !important;
+  /* Fondo gris muy claro */
+  color: #000000 !important;
+  font-weight: bold !important;
+  border-bottom: 1px solid #aaaaaa !important;
+  /* Borde inferior más notable */
+  position: static !important;
+  /* Asegurar que no sea sticky para impresión */
+}
+
+.menu-table.print-mode thead th:not(:first-child) {
+  border-right: 1px solid #cccccc !important;
+}
+
+.menu-table.print-mode thead th:first-child {
+  /* Celda vacía */
+  border-right: 1px solid #aaaaaa !important;
+}
+
+/* Etiquetas de momento (Desayuno, Comida, etc.) */
+.menu-table.print-mode .moment-label {
+  background-color: #e9e9e9 !important;
+  /* Mismo fondo que encabezados de día */
+  color: #000000 !important;
+  font-weight: bold !important;
+  text-align: left !important;
+  /* Alineación a la izquierda para impresión */
+  padding-left: 10px !important;
+  border-right: 1px solid #aaaaaa !important;
+  /* Borde derecho más notable */
+  position: static !important;
+  /* Asegurar que no sea sticky para impresión */
+}
+
+/* Tarjetas de menú */
+.menu-table.print-mode .menu-card {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid #dddddd !important;
+  /* Borde simple y claro */
+  box-shadow: none !important;
+  padding: 8px !important;
+  margin: 4px !important;
+  /* Margen reducido para impresión */
+  min-height: auto !important;
+  /* Altura basada en contenido */
+}
+
+.menu-table.print-mode .menu-card .option-title,
+.menu-table.print-mode .menu-card .dish-title,
+.menu-table.print-mode .menu-card .ingredients-list li {
+  color: #000000 !important;
+  font-size: 9pt !important;
+  /* Tamaño de fuente para impresión, ej. 9pt */
+  font-weight: normal !important;
+  /* Resetear bold si no es necesario */
+}
+
+.menu-table.print-mode .menu-card .option-title {
+  font-weight: bold !important;
+  /* Título de opción sí en negrita */
+  margin-bottom: 3px !important;
+}
+
+.menu-table.print-mode .menu-card .dish-title {
+  font-weight: 500 !important;
+  /* Un poco de énfasis para el platillo */
+  margin-top: 3px !important;
+}
+
+.menu-table.print-mode .menu-card .dishes-list,
+.menu-table.print-mode .menu-card .ingredients-list {
+  margin-left: 0 !important;
+  padding-left: 10px !important;
+  /* Indentación para listas */
+  list-style-position: outside !important;
+}
+
+.menu-table.print-mode .menu-card .ingredients-list {
+  list-style-type: disc !important;
+  /* Asegurar viñetas visibles */
+}

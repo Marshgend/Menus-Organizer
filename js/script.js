@@ -24,14 +24,12 @@ const DIAS = [
   "Domingo",
 ];
 
-let currentMenuPorDia = {}; // Almacena el estado del menú parseado
+let currentMenuPorDia = {};
 
-// Detecta el momento del día por nombre de sección (alineado con tu lógica original)
 function getMomentoKey(sectionName, usedMoments) {
   const name = sectionName.trim().toLowerCase();
   for (const momento of MOMENTOS) {
     if (momento.aliases.some((alias) => name.startsWith(alias))) {
-      // Si ya se usó este momento, y hay dos colaciones, asigna a la segunda colación
       if (
         momento.key.startsWith("colacion") &&
         usedMoments.filter((k) => k.startsWith("colacion")).length === 1
@@ -43,29 +41,24 @@ function getMomentoKey(sectionName, usedMoments) {
       }
     }
   }
-  // Fallback original si no se encuentra un match específico
-  return `momento_no_mapeado_${usedMoments.length}`; // Fallback más descriptivo
+  return `momento_no_mapeado_${usedMoments.length}`;
 }
 
-// Parsea el texto a estructura por momento y día (alineado con tu lógica original)
 function parseMenu(text) {
   const lines = text.split("\n").map((l) => l.trimEnd());
   const categorias = [];
   let currentCategoria = null;
   let currentOpcion = null;
   let currentPlatillo = null;
-  let usedMoments = []; // Reiniciar para cada parseo
+  let usedMoments = [];
 
   for (let line of lines) {
     const trimmedLine = line.trim();
     if (!trimmedLine) continue;
 
-    // Categoría (sin indentación)
     if (/^[^\s]/.test(line)) {
-      // Usar trimmedLine para getMomentoKey
       const momentoKey = getMomentoKey(trimmedLine, usedMoments);
-      usedMoments.push(momentoKey); // Actualización simple e inmediata
-
+      usedMoments.push(momentoKey);
       currentCategoria = {
         name: trimmedLine,
         momentoKey,
@@ -77,8 +70,6 @@ function parseMenu(text) {
       continue;
     }
 
-    // Opción (2 espacios)
-    // Asegurarse de que currentCategoria no sea null (ej. si la primera línea no es categoría)
     if (/^  [^\s]/.test(line) && currentCategoria) {
       const match = line.match(/^  (.+?)\s*-\s*(\d+)\s*d[ií]as?$/i);
       if (match) {
@@ -93,19 +84,15 @@ function parseMenu(text) {
       continue;
     }
 
-    // Platillo (4 espacios)
-    // Asegurarse de que currentOpcion no sea null
     if (/^    [^\s]/.test(line) && currentOpcion) {
       currentPlatillo = {
-        name: trimmedLine, // Usar trimmedLine
+        name: trimmedLine,
         ingredients: [],
       };
       currentOpcion.dishes.push(currentPlatillo);
       continue;
     }
 
-    // Ingrediente (6 espacios)
-    // Asegurarse de que currentPlatillo no sea null
     if (/^      [^\s]/.test(line) && currentPlatillo) {
       const ingMatch = trimmedLine.match(/^(.+?)\s*\|\s*(.+?)\s*\|\s*(.+)$/);
       if (ingMatch) {
@@ -115,7 +102,6 @@ function parseMenu(text) {
           unit: ingMatch[3].trim(),
         });
       } else {
-        // Si no hay formato con |, tomar toda la línea como nombre
         currentPlatillo.ingredients.push({
           name: trimmedLine,
           qty: "",
@@ -126,19 +112,16 @@ function parseMenu(text) {
     }
   }
 
-  // Distribuye las opciones por días para cada momento
   const menuPorDia = {};
   DIAS.forEach((_, i) => {
     menuPorDia[i] = {};
     MOMENTOS.forEach((momento) => {
-      menuPorDia[i][momento.key] = null; // Inicializar todos los momentos para todos los días
+      menuPorDia[i][momento.key] = null;
     });
   });
 
   for (const momento of MOMENTOS) {
     let opcionesDelMomentoAcumuladas = [];
-    // Filtrar categorías que coincidan con la momento.key actual
-    // Esto es crucial: solo tomamos las categorías que getMomentoKey asignó correctamente
     categorias
       .filter((cat) => cat.momentoKey === momento.key)
       .forEach((cat) => {
@@ -150,8 +133,6 @@ function parseMenu(text) {
           });
         }
       });
-
-    // Rellenar o truncar para que haya exactamente una opción por día (o null)
     while (opcionesDelMomentoAcumuladas.length < DIAS.length) {
       opcionesDelMomentoAcumuladas.push(null);
     }
@@ -159,7 +140,6 @@ function parseMenu(text) {
       0,
       DIAS.length
     );
-
     for (let d = 0; d < DIAS.length; d++) {
       menuPorDia[d][momento.key] = opcionesDelMomentoAcumuladas[d];
     }
@@ -167,9 +147,8 @@ function parseMenu(text) {
   return menuPorDia;
 }
 
-// Renderiza la tabla (lógica de D&D y hover como tu original)
 function renderMenuTable(menuData) {
-  currentMenuPorDia = menuData; // Actualiza el estado global
+  currentMenuPorDia = menuData;
   const menuTableDiv = document.getElementById("menuTable");
   menuTableDiv.innerHTML = "";
 
@@ -192,7 +171,6 @@ function renderMenuTable(menuData) {
   MOMENTOS.forEach((momento) => {
     const tr = document.createElement("tr");
     tr.className = `row-${momento.key}`;
-
     const tdLabel = document.createElement("td");
     tdLabel.className = "moment-label";
     tdLabel.textContent = momento.label;
@@ -201,7 +179,6 @@ function renderMenuTable(menuData) {
     for (let d = 0; d < DIAS.length; d++) {
       const td = document.createElement("td");
       const opcion = currentMenuPorDia[d]?.[momento.key];
-
       if (opcion) {
         const card = document.createElement("div");
         card.className = "menu-card";
@@ -217,14 +194,12 @@ function renderMenuTable(menuData) {
           );
           e.dataTransfer.effectAllowed = "move";
         });
-
         card.addEventListener("dragend", () => {
           card.classList.remove("dragging");
           document
             .querySelectorAll(".menu-card.over")
             .forEach((el) => el.classList.remove("over"));
         });
-
         card.addEventListener("dragover", (e) => {
           e.preventDefault();
           const dragging = document.querySelector(".menu-card.dragging");
@@ -236,25 +211,21 @@ function renderMenuTable(menuData) {
             card.classList.add("over");
           }
         });
-
         card.addEventListener("dragleave", () => {
           card.classList.remove("over");
         });
-
         card.addEventListener("drop", (e) => {
           e.preventDefault();
           card.classList.remove("over");
           const dataText = e.dataTransfer.getData("text/plain");
           if (!dataText) return;
           const data = JSON.parse(dataText);
-
           if (
             data.momento === momento.key &&
             data.dia.toString() !== card.dataset.dia
           ) {
             const sourceDia = parseInt(data.dia);
             const targetDia = parseInt(card.dataset.dia);
-
             const temp = currentMenuPorDia[sourceDia][momento.key];
             currentMenuPorDia[sourceDia][momento.key] =
               currentMenuPorDia[targetDia][momento.key];
@@ -262,7 +233,6 @@ function renderMenuTable(menuData) {
             renderMenuTable(currentMenuPorDia);
           }
         });
-
         card.addEventListener("mouseenter", () => {
           if (!card.classList.contains("dragging")) {
             card.style.boxShadow = "0 0 0 3px #4f8cff55, 0 2px 8px #0001";
@@ -276,7 +246,6 @@ function renderMenuTable(menuData) {
         optTitle.className = "option-title";
         optTitle.textContent = opcion.title;
         card.appendChild(optTitle);
-
         if (opcion.dishes && opcion.dishes.length > 0) {
           const dishesList = document.createElement("ul");
           dishesList.className = "dishes-list";
@@ -286,7 +255,6 @@ function renderMenuTable(menuData) {
             dishTitle.className = "dish-title";
             dishTitle.textContent = dish.name;
             dishLi.appendChild(dishTitle);
-
             if (dish.ingredients && dish.ingredients.length > 0) {
               const ingList = document.createElement("ul");
               ingList.className = "ingredients-list";
@@ -310,127 +278,118 @@ function renderMenuTable(menuData) {
     }
     tbody.appendChild(tr);
   });
-
   table.appendChild(tbody);
   menuTableDiv.appendChild(table);
-
   document.getElementById("exportPDFBtn").disabled = false;
-  document.getElementById("exportImgBtn").disabled = false;
 }
 
-// Exportar a PDF
 function exportToPDF() {
-  const menuTableElement = document.querySelector("#menuTable .menu-table");
-  if (!menuTableElement) return;
+  const originalTableElement = document.querySelector(
+    "#menuTable .menu-table"
+  );
+  if (!originalTableElement) {
+    console.error("Elemento .menu-table original no encontrado.");
+    alert("No se encontró la tabla del menú para exportar.");
+    return;
+  }
 
-  const appMain = document.querySelector(".app-main");
-  const originalAppMainOverflow = appMain.style.overflowY;
-  appMain.style.overflowY = "visible";
-  const menuTableContainer = document.getElementById("menuTableContainer");
-  const originalTableContainerOverflow = menuTableContainer.style.overflowX;
-  menuTableContainer.style.overflowX = "visible";
+  console.log("Iniciando exportación a PDF (Estrategia de Clonación)...");
 
-  html2canvas(menuTableElement, {
-    scale: 1.5,
+  // 1. Clonar la tabla
+  const clonedTableElement = originalTableElement.cloneNode(true);
+
+  // 2. Aplicar estilos de impresión y simplificaciones al CLON
+  clonedTableElement.classList.add("print-mode");
+  // La clase .print-mode ya debería poner position:static a los sticky headers.
+  // Si se necesita forzar más:
+  // const stickyInClone = clonedTableElement.querySelectorAll("thead th, .moment-label");
+  // stickyInClone.forEach(el => el.style.position = 'static !important');
+
+  // 3. Añadir el clon al DOM (oculto) para que html2canvas lo procese
+  clonedTableElement.style.position = "absolute";
+  clonedTableElement.style.left = "-9999px";
+  clonedTableElement.style.top = "-9999px";
+  clonedTableElement.style.zIndex = "-1"; // Asegurar que no sea visible
+  // Es importante añadirlo al body para que los estilos computados sean correctos
+  document.body.appendChild(clonedTableElement);
+
+  console.log("Clon de tabla creado y añadido al DOM (oculto).");
+  console.log(
+    "Clon scrollWidth:",
+    clonedTableElement.scrollWidth,
+    "scrollHeight:",
+    clonedTableElement.scrollHeight
+  );
+
+  // 4. Llamar a html2canvas sobre el CLON
+  html2canvas(clonedTableElement, {
+    scale: 1.5, // Empezar con una escala razonable
+    backgroundColor: "#ffffff", // El modo print ya tiene fondo blanco
     useCORS: true,
-    backgroundColor: getComputedStyle(document.body)
-      .getPropertyValue("--bg-table")
-      .trim(),
+    logging: true,
+    scrollX: 0,
+    scrollY: 0,
+    // Usar las dimensiones del clon, que ya no debería tener scroll interno problemático
+    windowWidth: clonedTableElement.offsetWidth, // Usar offsetWidth/Height para el clon
+    windowHeight: clonedTableElement.offsetHeight,
   })
     .then((canvas) => {
-      appMain.style.overflowY = originalAppMainOverflow;
-      menuTableContainer.style.overflowX = originalTableContainerOverflow;
+      console.log(
+        "html2canvas completado sobre el clon. Canvas:",
+        canvas.width,
+        "x",
+        canvas.height
+      );
 
-      const pageWidth = 8.5 * 72;
-      const pageHeight = 11 * 72;
-      const margin = 0.5 * 72;
-      const availableWidth = pageWidth - 2 * margin;
-      const availableHeight = pageHeight - 2 * margin;
-      let imgWidth = canvas.width;
-      let imgHeight = canvas.height;
-      let ratio = imgWidth / imgHeight;
+      // 5. Eliminar el clon del DOM
+      document.body.removeChild(clonedTableElement);
+      console.log("Clon de tabla eliminado del DOM.");
 
-      if (imgWidth > availableWidth) {
-        imgWidth = availableWidth;
-        imgHeight = imgWidth / ratio;
-      }
-      if (imgHeight > availableHeight) {
-        imgHeight = availableHeight;
-        imgWidth = imgHeight * ratio;
-      }
-      if (imgWidth > availableWidth) {
-        imgWidth = availableWidth;
-        imgHeight = imgWidth / ratio;
-      }
-
+      // 6. Generar y abrir PDF
+      console.log("Generando PDF...");
+      const imgData = canvas.toDataURL("image/png");
       const pdf = new window.jspdf.jsPDF({
-        orientation: imgWidth > imgHeight ? "landscape" : "portrait",
+        orientation: "landscape",
         unit: "pt",
         format: "letter",
       });
-      pdf.addImage(
-        canvas.toDataURL("image/png"),
-        "PNG",
-        margin,
-        margin,
-        imgWidth,
-        imgHeight
-      );
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 20;
+      const imgWidth = pageWidth - 2 * margin;
+      let imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      if (imgHeight > pageHeight - 2 * margin) {
+        imgHeight = pageHeight - 2 * margin;
+      }
+
+      pdf.addImage(imgData, "PNG", margin, margin, imgWidth, imgHeight);
+      console.log("Generando blob del PDF...");
       const blob = pdf.output("blob");
+      console.log("Blob generado, abriendo URL...");
       const url = URL.createObjectURL(blob);
       window.open(url, "_blank");
+      console.log("PDF abierto o intento de apertura realizado.");
     })
     .catch((err) => {
-      console.error("Error al exportar a PDF:", err);
-      appMain.style.overflowY = originalAppMainOverflow;
-      menuTableContainer.style.overflowX = originalTableContainerOverflow;
-    });
-}
-
-// Exportar a imagen PNG
-function exportToImage() {
-  const menuTableElement = document.querySelector("#menuTable .menu-table");
-  if (!menuTableElement) return;
-
-  const appMain = document.querySelector(".app-main");
-  const originalAppMainOverflow = appMain.style.overflowY;
-  appMain.style.overflowY = "visible";
-  const menuTableContainer = document.getElementById("menuTableContainer");
-  const originalTableContainerOverflow = menuTableContainer.style.overflowX;
-  menuTableContainer.style.overflowX = "visible";
-
-  html2canvas(menuTableElement, {
-    scale: 2,
-    useCORS: true,
-    backgroundColor: getComputedStyle(document.body)
-      .getPropertyValue("--bg-table")
-      .trim(),
-  })
-    .then((canvas) => {
-      appMain.style.overflowY = originalAppMainOverflow;
-      menuTableContainer.style.overflowX = originalTableContainerOverflow;
-
-      const dataUrl = canvas.toDataURL("image/png");
-      const win = window.open();
-      win.document.write(
-        `<html><head><title>Menu Semanal</title></head><body style="margin:0;background:var(--bg-main); display:flex; justify-content:center; align-items:center; min-height:100vh;"><img src="${dataUrl}" style="max-width:100%;max-height:100vh;display:block;"/></body></html>`
+      console.error("Error durante la exportación a PDF:", err);
+      // Asegurarse de eliminar el clon también en caso de error
+      if (document.body.contains(clonedTableElement)) {
+        document.body.removeChild(clonedTableElement);
+        console.log("Clon de tabla eliminado del DOM después de error.");
+      }
+      alert(
+        "Hubo un error al generar el PDF. Revisa la consola para más detalles."
       );
-    })
-    .catch((err) => {
-      console.error("Error al exportar a Imagen:", err);
-      appMain.style.overflowY = originalAppMainOverflow;
-      menuTableContainer.style.overflowX = originalTableContainerOverflow;
     });
 }
 
-// Eventos y control de visibilidad
 document.addEventListener("DOMContentLoaded", () => {
   const inputText = document.getElementById("inputText");
   const inputArea = document.querySelector(".input-area");
   const menuTableContainer = document.getElementById("menuTableContainer");
   const parseBtn = document.getElementById("parseBtn");
   const exportPDFBtn = document.getElementById("exportPDFBtn");
-  const exportImgBtn = document.getElementById("exportImgBtn");
 
   inputArea.classList.remove("hidden");
   menuTableContainer.classList.add("hidden");
@@ -442,29 +401,19 @@ document.addEventListener("DOMContentLoaded", () => {
       inputArea.classList.remove("hidden");
       menuTableContainer.classList.add("hidden");
       exportPDFBtn.disabled = true;
-      exportImgBtn.disabled = true;
       return;
     }
     const parsedMenu = parseMenu(text);
     renderMenuTable(parsedMenu);
-
     inputArea.classList.add("hidden");
     menuTableContainer.classList.remove("hidden");
   });
 
   exportPDFBtn.addEventListener("click", () => {
-    if (Object.keys(currentMenuPorDia).length === 0 || !currentMenuPorDia[0]) { // Chequeo más robusto
+    if (Object.keys(currentMenuPorDia).length === 0 || !currentMenuPorDia[0]) {
       alert("Primero procesa un menú para poder exportarlo.");
       return;
     }
     exportToPDF();
-  });
-
-  exportImgBtn.addEventListener("click", () => {
-    if (Object.keys(currentMenuPorDia).length === 0 || !currentMenuPorDia[0]) { // Chequeo más robusto
-      alert("Primero procesa un menú para poder exportarlo.");
-      return;
-    }
-    exportToImage();
   });
 });
